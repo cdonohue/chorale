@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# https://developers.cloudflare.com/workers/vite-plugin/tutorial/#update-the-gitignore-file
+.wrangler
+.dev.vars
