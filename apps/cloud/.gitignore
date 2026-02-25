@@ -26,3 +26,4 @@ dist-ssr
 # https://developers.cloudflare.com/workers/vite-plugin/tutorial/#update-the-gitignore-file
 .wrangler
 .dev.vars
+worker-configuration.d.ts

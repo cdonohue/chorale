@@ -1,45 +1,48 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { SandboxAddon } from '@cloudflare/sandbox/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import { Terminal } from '@xterm/xterm'
+import { useLayoutEffect } from 'react'
+// @ts-ignore
+import { Dracula } from 'xterm-theme'
+
+import '@xterm/xterm/css/xterm.css'
 import './App.css'
 
+const terminal = new Terminal({ cursorBlink: true, theme: Dracula })
+const fitAddon = new FitAddon()
+const sandboxAddon = new SandboxAddon({
+  getWebSocketUrl({ origin }) {
+    return `${origin}/ws/terminal`
+  },
+  onStateChange(state, error) {
+    if (error) {
+      console.error(error)
+    } else {
+      console.info(state, error)
+    }
+  },
+})
+
+terminal.loadAddon(fitAddon)
+terminal.loadAddon(sandboxAddon)
+
 function App() {
-  const [count, setCount] = useState(0)
-  const [name, setName] = useState("unknown")
+  useLayoutEffect(() => {
+    terminal.open(document.getElementById('terminal')!)
+    fitAddon.fit()
+    sandboxAddon.connect({ sandboxId: "default" })
+
+    const controller = new AbortController()
+    window.addEventListener("resize", fitAddon.fit, { signal: controller.signal })
+
+    return () => {
+      controller.abort();
+      sandboxAddon.disconnect();
+    };
+  }, []);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is now {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <div className="card">
-        <button onClick={() => {
-          fetch("/api/").then(res => res.json() as Promise<{ name: string }>).then(data => setName(data.name));
-        }}>
-          Name from the API is: {name}
-        </button>
-        <p>
-          Edit <code>worker/index.ts</code> to change the name
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className="w-full h-full" id="terminal"></div>
   )
 }
 
