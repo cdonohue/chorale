@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { Effect, Layer, Schema, } from "effect";
-import { HttpRouter, HttpServer } from "effect/unstable/http";
+import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiScalar } from "effect/unstable/httpapi";
 
 import { getSandbox, Sandbox } from "@cloudflare/sandbox";
@@ -16,9 +16,9 @@ const Api = HttpApi.make("api")
             name: Schema.String,
           })
         }),
-        // HttpApiEndpoint.get("terminal", "/ws/terminal", {
-        //   "success": Schema.Void,
-        // }),
+        HttpApiEndpoint.get("terminal", "/ws/terminal", {
+          "success": Schema.Any
+        }),
         HttpApiEndpoint.get("catchAll", "*", {
           error: HttpApiError.NotFound
         })
@@ -30,16 +30,14 @@ const GroupLive = HttpApiBuilder.group(
   "group",
   (handlers) => handlers
     .handle("name", () => Effect.succeed({ name: "Cloudflare" }))
-    // .handle("terminal", (ctx) => Effect.gen(function* () {
-    //   const request = new Request(ctx.request.originalUrl, {
-    //     headers: ctx.request.headers,
-    //     method: ctx.request.method,
-    //   });
-    //   const sandbox = getSandbox(env.Sandbox, "default");
-    //   const terminal = yield* Effect.promise(() => sandbox.terminal(request, { cols: 80, rows: 24 }) as Promise<Response>)
+    .handle("terminal", (ctx) => Effect.gen(function* () {
+      const request = yield* HttpServerRequest.toWeb(ctx.request)
+      const sandbox = getSandbox(env.Sandbox, "default");
+      const session = yield* Effect.promise(() => sandbox.createSession());
+      const terminal = yield* Effect.promise(() => session.terminal(request, { cols: 80, rows: 24 }) as Promise<Response>)
 
-    //   return HttpServerResponse.fromWeb(terminal)
-    // }))
+      return HttpServerResponse.fromWeb(terminal);
+    }))
     .handle("catchAll", () => Effect.fail(new HttpApiError.NotFound()))
 )
 
@@ -56,7 +54,7 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // TODO: Surely there's an effect way of doing this?
+    // TODO: Surely there's an Effect way of doing this?
     if (url.pathname.startsWith("/ws/terminal")) {
       const sandbox = getSandbox<Sandbox>(env.Sandbox, "default");
       const session = await sandbox.createSession();
